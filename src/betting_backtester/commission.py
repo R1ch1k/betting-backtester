@@ -47,8 +47,8 @@ class SettledBetLine(BaseModel):
     gross_pnl: float = Field(
         allow_inf_nan=False,
         description=(
-            "Profit or loss in currency units before commission. "
-            "Negative for losing bets."
+            "Profit or loss in currency units at settlement, before any "
+            "commission is applied. Negative for losing bets."
         ),
     )
 
@@ -79,6 +79,17 @@ class CommissionBreakdown(BaseModel):
                 raise ValueError(f"per_bet[{bet_id!r}] must be finite, got {value!r}")
             if value < 0.0:
                 raise ValueError(f"per_bet[{bet_id!r}] must be >= 0, got {value}")
+        if self.total > 0.0 and not self.per_bet:
+            raise ValueError(
+                f"total is {self.total} but per_bet is empty; a non-zero "
+                "charge must be attributed to at least one bet"
+            )
+        attributed = math.fsum(self.per_bet.values())
+        if abs(attributed - self.total) > 1e-9:
+            raise ValueError(
+                f"per_bet sums to {attributed}, expected total {self.total} "
+                f"(difference {attributed - self.total})"
+            )
         return self
 
 
@@ -151,10 +162,10 @@ class NetWinningsCommission:
                 )
             seen.add(bet.bet_id)
 
-        zero_attribution: dict[str, float] = {bet.bet_id: 0.0 for bet in bets}
+        per_bet: dict[str, float] = {bet.bet_id: 0.0 for bet in bets}
         net = math.fsum(bet.gross_pnl for bet in bets)
         if net <= 0.0:
-            return CommissionBreakdown(total=0.0, per_bet=zero_attribution)
+            return CommissionBreakdown(total=0.0, per_bet=per_bet)
 
         total = self._rate * net
         winners_gross_sum = math.fsum(
@@ -162,7 +173,6 @@ class NetWinningsCommission:
         )
         # ``net > 0`` implies at least one bet has ``gross_pnl > 0``, so
         # ``winners_gross_sum > 0``. No division-by-zero guard needed.
-        per_bet = dict(zero_attribution)
         for bet in bets:
             if bet.gross_pnl > 0.0:
                 per_bet[bet.bet_id] = total * (bet.gross_pnl / winners_gross_sum)
