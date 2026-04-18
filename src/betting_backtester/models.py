@@ -7,7 +7,7 @@ these models.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
@@ -76,8 +76,8 @@ class Match(BaseModel):
 
     @model_validator(mode="after")
     def _validate(self) -> Match:
-        if self.kickoff.tzinfo is None:
-            raise ValueError("kickoff must be timezone-aware")
+        if self.kickoff.utcoffset() != timedelta(0):
+            raise ValueError("kickoff must be UTC (offset 0)")
         if self.home == self.away:
             raise ValueError(f"home and away must differ (got {self.home!r} for both)")
         return self
@@ -107,8 +107,8 @@ class OddsSnapshot(BaseModel):
 
     @model_validator(mode="after")
     def _validate(self) -> OddsSnapshot:
-        if self.timestamp.tzinfo is None:
-            raise ValueError("timestamp must be timezone-aware")
+        if self.timestamp.utcoffset() != timedelta(0):
+            raise ValueError("timestamp must be UTC (offset 0)")
         return self
 
     def odds_for(self, selection: Selection) -> SelectionOdds:
@@ -137,8 +137,8 @@ class MatchResult(BaseModel):
 
     @model_validator(mode="after")
     def _validate(self) -> MatchResult:
-        if self.timestamp.tzinfo is None:
-            raise ValueError("timestamp must be timezone-aware")
+        if self.timestamp.utcoffset() != timedelta(0):
+            raise ValueError("timestamp must be UTC (offset 0)")
         return self
 
     @computed_field  # type: ignore[prop-decorator]

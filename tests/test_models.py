@@ -130,6 +130,19 @@ class TestMatch:
                 away="Chelsea",
             )
 
+    def test_non_utc_kickoff_is_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            Match(
+                match_id="m1",
+                kickoff=datetime(
+                    2024, 1, 15, 15, 0, tzinfo=timezone(timedelta(hours=1))
+                ),
+                league="E0",
+                season="2023-24",
+                home="Arsenal",
+                away="Chelsea",
+            )
+
     def test_home_equals_away_is_rejected(self, utc_time: datetime) -> None:
         with pytest.raises(ValidationError):
             Match(
@@ -185,6 +198,18 @@ class TestOddsSnapshot:
             OddsSnapshot(
                 match_id="m1",
                 timestamp=datetime(2024, 1, 15, 14, 59),
+                home=selection_odds,
+                draw=selection_odds,
+                away=selection_odds,
+            )
+
+    def test_non_utc_timestamp_is_rejected(self, selection_odds: SelectionOdds) -> None:
+        with pytest.raises(ValidationError):
+            OddsSnapshot(
+                match_id="m1",
+                timestamp=datetime(
+                    2024, 1, 15, 14, 59, tzinfo=timezone(timedelta(hours=1))
+                ),
                 home=selection_odds,
                 draw=selection_odds,
                 away=selection_odds,
@@ -256,6 +281,17 @@ class TestMatchResult:
             MatchResult(
                 match_id="m1",
                 timestamp=datetime(2024, 1, 15, 16, 49),
+                home_goals=1,
+                away_goals=1,
+            )
+
+    def test_non_utc_timestamp_is_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            MatchResult(
+                match_id="m1",
+                timestamp=datetime(
+                    2024, 1, 15, 16, 49, tzinfo=timezone(timedelta(hours=1))
+                ),
                 home_goals=1,
                 away_goals=1,
             )
