@@ -80,15 +80,21 @@ class TestSelectionOdds:
         with pytest.raises(ValidationError):
             SelectionOdds(back_price=2.10, lay_price=2.05)
 
-    @pytest.mark.parametrize("price", [1.00, 0.5, -1.0])
-    def test_back_price_below_minimum_is_rejected(self, price: float) -> None:
+    @pytest.mark.parametrize("price", [1.0, 0.999, 0.5, 0.0, -1.0])
+    def test_back_price_at_or_below_one_is_rejected(self, price: float) -> None:
         with pytest.raises(ValidationError):
             SelectionOdds(back_price=price, lay_price=2.0)
 
-    @pytest.mark.parametrize("price", [1.00, 0.5, -1.0])
-    def test_lay_price_below_minimum_is_rejected(self, price: float) -> None:
+    @pytest.mark.parametrize("price", [1.0, 0.999, 0.5, 0.0, -1.0])
+    def test_lay_price_at_or_below_one_is_rejected(self, price: float) -> None:
         with pytest.raises(ValidationError):
             SelectionOdds(back_price=2.0, lay_price=price)
+
+    @pytest.mark.parametrize("price", [1.005, 1.01])
+    def test_prices_just_above_one_are_accepted(self, price: float) -> None:
+        odds = SelectionOdds(back_price=price, lay_price=price)
+        assert odds.back_price == price
+        assert odds.lay_price == price
 
     def test_round_trips_via_model_dump(self, selection_odds: SelectionOdds) -> None:
         restored = SelectionOdds.model_validate(selection_odds.model_dump())
