@@ -95,9 +95,15 @@ class OddsSnapshot(BaseModel):
     timestamp: datetime = Field(
         description="Observation time of this snapshot, timezone-aware UTC. Sort key in the event stream.",
     )
-    home: SelectionOdds = Field(description="Best back/lay prices for the home-win selection.")
-    draw: SelectionOdds = Field(description="Best back/lay prices for the draw selection.")
-    away: SelectionOdds = Field(description="Best back/lay prices for the away-win selection.")
+    home: SelectionOdds = Field(
+        description="Best back/lay prices for the home-win selection."
+    )
+    draw: SelectionOdds = Field(
+        description="Best back/lay prices for the draw selection."
+    )
+    away: SelectionOdds = Field(
+        description="Best back/lay prices for the away-win selection."
+    )
 
     @model_validator(mode="after")
     def _validate(self) -> OddsSnapshot:
@@ -151,7 +157,9 @@ class OddsAvailable(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    snapshot: OddsSnapshot = Field(description="The market state that just became visible.")
+    snapshot: OddsSnapshot = Field(
+        description="The market state that just became visible."
+    )
 
     @property
     def timestamp(self) -> datetime:
@@ -164,7 +172,9 @@ class MatchSettled(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    result: MatchResult = Field(description="The final result that triggered settlement.")
+    result: MatchResult = Field(
+        description="The final result that triggered settlement."
+    )
 
     @property
     def timestamp(self) -> datetime:
