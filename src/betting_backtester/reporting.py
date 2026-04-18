@@ -145,10 +145,12 @@ def compute_yield_ci(
     groups = group_ledger_by_match(result.ledger)
     n_groups = len(groups)
     # Pre-compute per-group turnover and net P&L so the inner loop is
-    # O(n_groups) per resample instead of O(n_bets). Computed once;
-    # ``sum`` is deterministic given a fixed input order.
-    group_stake = [sum(b.stake for b in bets) for _, bets in groups]
-    group_net = [sum(b.net_pnl for b in bets) for _, bets in groups]
+    # O(n_groups) per resample instead of O(n_bets). Use math.fsum so
+    # upstream group totals match the precision discipline of the inner
+    # loop's resample accumulation -- otherwise determinism could drift
+    # on the last ulp across platforms.
+    group_stake = [math.fsum(b.stake for b in bets) for _, bets in groups]
+    group_net = [math.fsum(b.net_pnl for b in bets) for _, bets in groups]
 
     rng = random.Random(seed)
     indices = range(n_groups)
