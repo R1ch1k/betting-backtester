@@ -1011,9 +1011,17 @@ class TestLifecycle:
         with pytest.raises(RuntimeError, match="unsettled"):
             backtester.run()
 
-    def test_non_strict_settlement_drops_with_warning(
+    def test_non_strict_settlement_drops_with_warning_and_refunds_cash(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
+        # White-box test on private state: the contract is that non-strict
+        # end-of-stream drops leave the backtester's internal bankroll
+        # state consistent, so the bets-placed-but-not-settled cash is
+        # refunded to ``_cash`` and ``_open_bets`` is emptied. Stake is
+        # set to the full starting bankroll so any missing refund would
+        # leave ``_cash`` at 0 and be obvious.
+        starting = 100.0
+        stake = starting  # whole bankroll committed to the unsettled bet
         t_odds = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
         snapshot = _uniform_snapshot("M1", t_odds, back=2.0, lay=2.0)
         order = BetOrder(
@@ -1021,7 +1029,7 @@ class TestLifecycle:
             selection=Selection.HOME,
             side=Side.BACK,
             price=2.0,
-            stake=10.0,
+            stake=stake,
         )
         strategy = ScriptedStrategy({"M1": [order]})
         source = ListEventSource([OddsAvailable(snapshot=snapshot)])
@@ -1029,17 +1037,24 @@ class TestLifecycle:
             event_source=source,
             strategy=strategy,
             commission_model=NetWinningsCommission(),
-            starting_bankroll=100.0,
+            starting_bankroll=starting,
             seed=0,
             strict_settlement=False,
         )
         with caplog.at_level(logging.WARNING, logger="betting_backtester.backtester"):
             output = backtester.run()
+
         assert output.ledger == ()
         assert output.rejections == ()
-        assert any(
-            "unsettled" in record.getMessage() for record in caplog.records
-        )
+
+        messages = [record.getMessage() for record in caplog.records]
+        assert any("unsettled" in m for m in messages)
+        # Log wording must truthfully describe the refund behaviour.
+        assert any("refunding" in m for m in messages)
+
+        # Committed funds refunded back to cash; open-bets map cleared.
+        assert backtester._cash == pytest.approx(starting)
+        assert backtester._open_bets == {}
 
     def test_strict_settlement_passes_on_clean_run(self) -> None:
         source, _, _ = self._single_match_source()

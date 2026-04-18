@@ -454,12 +454,26 @@ class Backtester:
                 "the same match_id. Pass strict_settlement=False if truncation "
                 "is intentional."
             )
+        # Non-strict mode: refund committed funds back to cash so the
+        # internal bankroll invariant still holds after the drop. Without
+        # this, cash stays artificially low by the committed total even
+        # though the bets are no longer open — any downstream read of
+        # _cash (including a subsequent .run()) would be corrupted.
+        refunded = sum(
+            bet.committed_funds
+            for bets in self._open_bets.values()
+            for bet in bets
+        )
         _logger.warning(
-            "strict_settlement=False: dropping %d unsettled bets across %d matches: %s",
+            "strict_settlement=False: dropping %d unsettled bets across %d matches "
+            "(refunding %s committed funds to cash): %s",
             sum(unsettled.values()),
             len(unsettled),
+            refunded,
             unsettled,
         )
+        self._cash += refunded
+        self._open_bets.clear()
 
     # ----- order validation + acceptance --------------------------------------
 
