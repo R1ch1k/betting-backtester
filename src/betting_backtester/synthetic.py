@@ -5,7 +5,7 @@ This module produces a time-ordered stream of ``OddsAvailable`` and
 distribution. Its job is to be the **ground-truth rig** for backtester
 correctness, not a realism simulator.
 
-Two deliberate v1 choices worth calling out:
+Three deliberate v1 choices worth calling out:
 
 * **Fair odds only.** Every emitted ``OddsSnapshot`` has
   ``back_price == lay_price == 1 / p`` for each selection, where ``p`` is the
@@ -133,8 +133,8 @@ class SyntheticGeneratorConfig:
         Kickoff-to-settlement delta. ``MatchSettled`` is emitted at
         ``kickoff + match_duration``.
     odds_lead:
-        Settlement-lead for the pre-match odds snapshot. ``OddsAvailable``
-        is emitted at ``kickoff - odds_lead``. Exposed rather than magic so
+        Kickoff-lead for the pre-match odds snapshot. ``OddsAvailable`` is
+        emitted at ``kickoff - odds_lead``. Exposed rather than magic so
         tests can pin exact timestamps.
     """
 
