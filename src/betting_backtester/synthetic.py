@@ -22,6 +22,12 @@ Two deliberate v1 choices worth calling out:
   the per-match RNG budget at exactly one draw (the outcome) and keeps
   determinism accounting trivial. A Poisson-based score model belongs with
   the xG strategy, not here.
+* **No team recurrence.** Each generated match uses a fresh pair of
+  synthetic teams (``SYN-T0001``/``SYN-T0002``,
+  ``SYN-T0003``/``SYN-T0004``, ...); no team appears in more than one
+  fixture. This is sufficient for the correctness rig — realistic
+  league-shape with recurring opponents is ``FootballDataLoader``'s
+  concern, not this module's.
 
 Determinism is absolute: identical :class:`SyntheticGeneratorConfig` yields
 a byte-identical event sequence, and no global RNG state is touched or
