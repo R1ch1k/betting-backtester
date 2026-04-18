@@ -133,6 +133,25 @@ class TestCommissionBreakdownValidator:
         with pytest.raises(ValidationError):
             breakdown.total = 1.0
 
+    def test_per_bet_is_immutable(self) -> None:
+        # ``frozen=True`` only blocks field reassignment; without the
+        # MappingProxyType wrapper, ``breakdown.per_bet["a"] = 999`` would
+        # silently violate the sum-to-total invariant. Lock the immutability
+        # in with an explicit test.
+        breakdown = CommissionBreakdown(total=3.0, per_bet={"a": 3.0, "b": 0.0})
+        with pytest.raises(TypeError):
+            breakdown.per_bet["a"] = 999.0  # type: ignore[index]
+
+    def test_per_bet_is_isolated_from_caller_dict(self) -> None:
+        # The AfterValidator copies the input via ``dict(...)`` before
+        # wrapping, so later mutations to the caller's original dict must
+        # not affect the stored mapping.
+        source: dict[str, float] = {"a": 3.0, "b": 0.0}
+        breakdown = CommissionBreakdown(total=3.0, per_bet=source)
+        source["a"] = 999.0
+        source["c"] = 42.0
+        assert dict(breakdown.per_bet) == {"a": 3.0, "b": 0.0}
+
 
 class TestNetWinningsCommissionConstructor:
     def test_default_rate(self) -> None:

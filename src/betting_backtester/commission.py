@@ -16,10 +16,11 @@ yield -- today it is not.
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
-from typing import Protocol, runtime_checkable
+from collections.abc import Mapping, Sequence
+from types import MappingProxyType
+from typing import Annotated, Protocol, runtime_checkable
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
 
 class SettledBetLine(BaseModel):
@@ -53,22 +54,34 @@ class SettledBetLine(BaseModel):
     )
 
 
+def _freeze_per_bet(value: Mapping[str, float]) -> Mapping[str, float]:
+    # Wrap in a MappingProxyType over a fresh copy so the stored mapping is
+    # genuinely read-only (breakdown.per_bet["a"] = 999 raises TypeError) and
+    # cannot be aliased to a dict the caller still holds a mutable reference
+    # to. Runs as an AfterValidator because Pydantic's own Mapping schema
+    # coerces to a plain dict before this point; a model_validator(mode="before")
+    # wrapper would not survive that coercion.
+    return MappingProxyType(dict(value))
+
+
 class CommissionBreakdown(BaseModel):
     """Commission owed on one market, plus attribution back to its bets.
 
     ``per_bet`` is keyed by ``bet_id``; every input bet's id appears exactly
     once. Per-bet values are non-negative and sum to ``total`` within float
-    tolerance.
+    tolerance. The stored ``per_bet`` is a ``types.MappingProxyType`` so the
+    invariants cannot be silently broken by mutating the mapping after
+    construction (``breakdown.per_bet["a"] = 999`` raises ``TypeError``).
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     total: float = Field(
         ge=0.0,
         allow_inf_nan=False,
         description="Total commission charged on this market group.",
     )
-    per_bet: dict[str, float] = Field(
+    per_bet: Annotated[Mapping[str, float], AfterValidator(_freeze_per_bet)] = Field(
         description="Per-bet attribution, keyed by bet_id. Non-negative; sums to total.",
     )
 
