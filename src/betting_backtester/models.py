@@ -183,7 +183,7 @@ class MatchSettled(BaseModel):
 
 
 Event = OddsAvailable | MatchSettled
-"""Discriminated union of every event that flows through the backtester's stream.
+"""Union of every event that flows through the backtester's stream.
 
 Loaders emit these in strict non-decreasing ``timestamp`` order; the backtester
 dispatches on concrete type (``OddsAvailable`` -> ``on_odds``, ``MatchSettled``
