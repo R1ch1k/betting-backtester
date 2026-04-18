@@ -27,11 +27,11 @@ class SelectionOdds(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     back_price: float = Field(
-        ge=1.01,
+        gt=1.0,
         description="Decimal odds paid out if you back this selection and it wins.",
     )
     lay_price: float = Field(
-        ge=1.01,
+        gt=1.0,
         description="Decimal odds you must pay out at if you lay this selection and it wins.",
     )
 
