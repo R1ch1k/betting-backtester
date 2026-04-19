@@ -27,8 +27,8 @@ share/python-wheels/
 MANIFEST
 
 #Random files
-scripts/
-data/
+data/*
+!data/README.md
 
 # PyInstaller
 #   Usually these files are written by a python script from a template
@@ -215,5 +215,4 @@ __marimo__/
 
 # Project-specific
 .env.*
-data/
 .claude/
