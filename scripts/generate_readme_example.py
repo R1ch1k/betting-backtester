@@ -29,7 +29,6 @@ import matplotlib.pyplot as plt
 
 from betting_backtester.commission import NetWinningsCommission
 from betting_backtester.football_data import FootballDataLoader
-from betting_backtester.reporting import compute_yield_ci
 from betting_backtester.strategies.xg_poisson import XgPoissonStrategy
 from betting_backtester.walk_forward import WalkForwardEvaluator, WindowSpec
 

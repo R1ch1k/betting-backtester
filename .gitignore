@@ -216,3 +216,8 @@ __marimo__/
 # Project-specific
 .env.*
 .claude/
+
+
+#.md files cleanup
+AGENTS.md
+CLAUDE.md
