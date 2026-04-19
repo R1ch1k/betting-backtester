@@ -34,6 +34,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "matplotlib" },
     { name = "mypy" },
     { name = "pandas-stubs" },
     { name = "pytest" },
@@ -53,6 +54,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "mypy", specifier = ">=1.20.1" },
     { name = "pandas-stubs", specifier = ">=2.2.3" },
     { name = "pytest", specifier = ">=9.0.3" },
