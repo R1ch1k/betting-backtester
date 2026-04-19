@@ -41,6 +41,7 @@ MALFORMED_ROWS = FIXTURES_DIR / "malformed_rows" / "E0.csv"
 BAD_DATES = FIXTURES_DIR / "bad_dates" / "E0.csv"
 TIE_BREAK = FIXTURES_DIR / "tie_break" / "E0.csv"
 CROSSES_SEASONS = FIXTURES_DIR / "crosses_seasons" / "E0.csv"
+CROSSES_SEASONS_SKIP_HIDES = FIXTURES_DIR / "crosses_seasons_skip_hides" / "E0.csv"
 
 
 def _valid_summary_kwargs(**overrides: int) -> dict[str, int]:
@@ -157,6 +158,18 @@ class TestConstructionValidation:
         with pytest.raises(ValueError, match="spans multiple football seasons") as exc:
             FootballDataLoader([CROSSES_SEASONS])
         # Both season labels appear in the message.
+        assert "2022-23" in str(exc.value)
+        assert "2023-24" in str(exc.value)
+
+    def test_crosses_seasons_detected_even_when_one_side_all_skipped(self) -> None:
+        # Regression test for a bug where the multi-season guard counted
+        # only loaded rows. A file with one row in season A (skipped, e.g.
+        # missing odds) and one row in season B (loaded) used to slip past
+        # the guard because file_seasons only saw season B. The fix registers
+        # the season from every row whose date parses, before any other
+        # skip check.
+        with pytest.raises(ValueError, match="spans multiple football seasons") as exc:
+            FootballDataLoader([CROSSES_SEASONS_SKIP_HIDES])
         assert "2022-23" in str(exc.value)
         assert "2023-24" in str(exc.value)
 

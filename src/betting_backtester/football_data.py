@@ -320,6 +320,12 @@ def _parse_row(
         )
         return
 
+    # Season is registered from every row whose date parses, not only from
+    # rows that end up loaded. Otherwise a file spanning two seasons where
+    # every row in one of them is skipped (missing odds, missing result,
+    # etc.) would silently bypass the multi-season guard.
+    file_seasons.add(_derive_season_for_date(parsed_date))
+
     home_goals_raw = row.get("FTHG", "").strip()
     away_goals_raw = row.get("FTAG", "").strip()
     try:
@@ -388,9 +394,6 @@ def _parse_row(
             f"duplicate match_id {match_id!r} across inputs; second "
             f"occurrence in {path} row {row_index}"
         )
-
-    season = _derive_season_for_date(parsed_date)
-    file_seasons.add(season)
 
     home_odds, draw_odds, away_odds = odds_result
     snapshot = OddsSnapshot(
