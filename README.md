@@ -121,7 +121,7 @@ A few decisions worth calling out because they're the difference between a toy b
 ## Installation
 
 ```bash
-git clone https://github.com/<your-username>/betting-backtester.git
+git clone https://github.com/R1ch1k/betting-backtester.git
 cd betting-backtester
 uv sync
 ```
