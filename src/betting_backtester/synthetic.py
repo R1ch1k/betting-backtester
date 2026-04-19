@@ -43,6 +43,7 @@ from datetime import datetime, timedelta
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from betting_backtester._event_ordering import stream_sort_key
 from betting_backtester.models import (
     Event,
     Match,
@@ -238,7 +239,7 @@ class SyntheticGenerator:
                     )
                 )
             )
-        buffered.sort(key=_stream_sort_key)
+        buffered.sort(key=stream_sort_key)
         yield from buffered
 
     def _sample_outcome(self, rng: random.Random) -> Selection:
@@ -268,11 +269,3 @@ class SyntheticGenerator:
 def _fair_odds(p: float) -> SelectionOdds:
     price = 1.0 / p
     return SelectionOdds(back_price=price, lay_price=price)
-
-
-def _stream_sort_key(event: Event) -> tuple[datetime, int, str]:
-    # Settlement (0) sorts before new-odds (1) at equal timestamps, then by
-    # match_id. Matches the invariant in docs/DESIGN.md.
-    if isinstance(event, MatchSettled):
-        return (event.timestamp, 0, event.result.match_id)
-    return (event.timestamp, 1, event.snapshot.match_id)
