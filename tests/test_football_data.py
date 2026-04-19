@@ -104,7 +104,7 @@ class TestFootballDataLoadSummary:
     def test_is_frozen(self) -> None:
         s = FootballDataLoadSummary(**_valid_summary_kwargs())
         with pytest.raises(ValidationError):
-            s.rows_seen = 99  # type: ignore[misc]
+            s.rows_seen = 99
 
 
 class TestConstructionValidation:
@@ -521,3 +521,20 @@ class TestEventSourceProtocolConformance:
             assert isinstance(ev, OddsAvailable | MatchSettled)
             count += 1
         assert count > 0
+
+
+class TestMatchesProperty:
+    def test_matches_property_exposes_loaded_fixtures(self) -> None:
+        loader = FootballDataLoader([CLEAN_MODERN])
+        matches = loader.matches
+        assert len(matches) == 6
+        target = matches["E0-2023-08-12-Arsenal-Nott_m_Forest"]
+        assert target.home == "Arsenal"
+        assert target.away == "Nott_m_Forest"
+        assert target.league == "E0"
+        assert target.season == "2023-24"
+
+    def test_matches_property_is_read_only(self) -> None:
+        loader = FootballDataLoader([CLEAN_MODERN])
+        with pytest.raises(TypeError):
+            loader.matches["new_id"] = ...  # type: ignore[index]  # MappingProxyType blocks mutation
