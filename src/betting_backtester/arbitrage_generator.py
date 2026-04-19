@@ -30,7 +30,7 @@ Given ``true_probs`` with ``fair_i = 1 / true_probs_i`` and a
   small overround, no arbitrage).
 * **Arb match.** ``back_i = fair_i / (1 - arb_margin)``. The back book
   then sums to exactly ``1 - arb_margin`` within
-  ``(1 - arb_margin) * _PROB_SUM_EPSILON``.
+  ``_ARB_BOOK_TOLERANCE``.
 
 Across both cases the **uniform lay/back invariant**
 ``lay_i = back_i * (1 + h) ** 2`` is preserved, so the multiplicative

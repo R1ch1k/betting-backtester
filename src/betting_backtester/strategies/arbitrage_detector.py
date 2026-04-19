@@ -34,8 +34,8 @@ When an arb triggers, the strategy stakes
     required = total_stake_fraction * bankroll
     s_i      = required * (1 / b_i) / implied_sum        for i in {H, D, A}
 
-and emits three :class:`~betting_backtester.backtester.BetOrder` s,
-all with ``Side.BACK``, at the snapshot's back prices. The stakes
+and emits three ``BetOrder`` instances, all with ``Side.BACK``, at
+the snapshot's back prices. The stakes
 sum to ``required`` and the payoff on any winning selection is
 ``s_i * b_i = required / implied_sum``, a constant; gross P&L per
 arb is therefore outcome-invariant and equal to
@@ -58,7 +58,7 @@ Bankroll basis
 Selected by the keyword-only ``bankroll_basis``:
 
 * ``"available_cash"`` (**default**, different from
-  :class:`XgPoissonStrategy`'s) --
+  :class:`~betting_backtester.strategies.xg_poisson.XgPoissonStrategy`'s) --
   :attr:`~betting_backtester.backtester.PortfolioView.available_bankroll`,
   i.e. cash after current commitments. Under a realistic arb
   stream, matches settle before the next arb arrives, so the cash
