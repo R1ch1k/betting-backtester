@@ -588,6 +588,7 @@ class TestEndToEndSynthetic:
             ),
             starting_bankroll=1000.0,
             seed=seed,
+            n_resamples=200,
         )
 
     def test_window_count(self) -> None:
@@ -644,6 +645,7 @@ class TestEquityChaining:
             ),
             starting_bankroll=1000.0,
             seed=3,
+            n_resamples=200,
         )
 
     def test_window_bankrolls_chain(self) -> None:
@@ -695,6 +697,7 @@ class TestDeterminism:
             ),
             starting_bankroll=1000.0,
             seed=12345,
+            n_resamples=500,
         )
 
     def test_same_inputs_byte_identical(self) -> None:

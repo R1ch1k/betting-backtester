@@ -121,7 +121,7 @@ from betting_backtester.backtester import (
 )
 from betting_backtester.commission import CommissionModel
 from betting_backtester.event_source import EventSource
-from betting_backtester.models import Event, OddsAvailable
+from betting_backtester.models import Event, MatchSettled, OddsAvailable
 from betting_backtester.reporting import YieldCI, compute_yield_ci
 
 
@@ -131,10 +131,22 @@ def _require_utc(name: str, ts: datetime) -> None:
 
 
 def _match_id_of(event: Event) -> str:
-    """Return the ``match_id`` an event pertains to, regardless of type."""
+    """Return the ``match_id`` an event pertains to, regardless of type.
+
+    Mirrors the defensive dispatch in
+    :meth:`~betting_backtester.backtester.Backtester.run`: both
+    concrete ``Event`` subtypes are handled explicitly and any other
+    runtime type raises :class:`TypeError`. The ``Event`` union is
+    closed today, but this belt-and-braces guard means a future
+    addition (e.g. an in-play snapshot event) surfaces as a clear
+    error here instead of an ``AttributeError`` on a missing
+    ``.result`` or ``.snapshot``.
+    """
     if isinstance(event, OddsAvailable):
         return event.snapshot.match_id
-    return event.result.match_id
+    if isinstance(event, MatchSettled):
+        return event.result.match_id
+    raise TypeError(f"unknown Event subtype: {type(event).__name__}")
 
 
 @dataclass(frozen=True)
