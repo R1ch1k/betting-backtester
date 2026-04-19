@@ -298,16 +298,22 @@ class TestPredict:
 
 
 class TestSyntheticRecovery:
-    def test_predictions_match_truth_on_dense_data(self) -> None:
-        rng = np.random.default_rng(seed=0)
-        n_teams = 10
-        teams = [f"T{i:02d}" for i in range(n_teams)]
-        alpha = rng.normal(0.0, 0.25, n_teams)
-        alpha -= alpha.mean()
-        beta = rng.normal(0.0, 0.25, n_teams)
-        beta -= beta.mean()
-        gamma = 0.3
+    @staticmethod
+    def _recovery_rmse(
+        *,
+        alpha: np.ndarray,
+        beta: np.ndarray,
+        gamma: float,
+        rng: np.random.Generator,
+    ) -> float:
+        """Shared helper: sample matches from ground-truth ratings, fit,
+        compare predictions against the truth, return overall RMSE.
 
+        Used by every test in this class so that varying the ground-
+        truth means is a one-line change in the caller.
+        """
+        n_teams = len(alpha)
+        teams = [f"T{i:02d}" for i in range(n_teams)]
         matches: list[TrainingMatch] = []
         t0 = datetime(2024, 1, 1, tzinfo=UTC)
         idx = 0
@@ -354,14 +360,65 @@ class TestSyntheticRecovery:
                         (fitted.away - truth_away) ** 2,
                     ]
                 )
+        return math.sqrt(sum(squared_errors) / len(squared_errors))
 
-        rmse = math.sqrt(sum(squared_errors) / len(squared_errors))
+    def test_predictions_match_truth_on_dense_data(self) -> None:
+        rng = np.random.default_rng(seed=0)
+        n_teams = 10
+        alpha = rng.normal(0.0, 0.25, n_teams)
+        alpha -= alpha.mean()
+        beta = rng.normal(0.0, 0.25, n_teams)
+        beta -= beta.mean()
+        rmse = self._recovery_rmse(alpha=alpha, beta=beta, gamma=0.3, rng=rng)
         # With 20 replicas per pair across 90 ordered pairs (1800
         # matches), probability predictions should match ground truth
         # to within 0.03 RMSE. Threshold chosen conservatively: RMSE
         # should sit comfortably below this; a fit that's off by 0.1+
         # per probability indicates a real regression.
         assert rmse < 0.03, f"overall probability RMSE = {rmse:.4f}"
+
+    def test_predictions_match_truth_with_asymmetric_shifted_means(
+        self,
+    ) -> None:
+        """Gauge-invariance check with deliberately asymmetric shifts.
+
+        Every lambda depends only on ``alpha_h - beta_a`` (plus
+        gamma), so the prediction we compare against is invariant
+        under the gauge transformation ``alpha_i += c``,
+        ``beta_i += c``. A correctly gauge-fixed fit recovers those
+        same lambdas regardless of where the ground truth sits in the
+        gauge family.
+
+        Why asymmetric shifts, not equal ones. Without L2, L-BFGS-B
+        from ``x0 = 0`` converges to the *minimum-norm* MLE on the
+        gauge manifold, which happens to satisfy
+        ``mean(alpha_raw) + mean(beta_raw) = 0``. When the ground
+        truth is shifted by the same amount on both sides
+        (e.g. ``alpha += 2, beta += 2``), both raw means come out
+        equal (``0`` here) and a buggy independent-centering step
+        becomes a no-op -- the bug hides. Shifting them by different
+        amounts (``alpha += 2.0``, ``beta -= 1.0``) forces the
+        minimum-norm fit to produce ``mean(alpha_raw) != mean(beta_raw)``
+        (``+1.5`` and ``-1.5`` at the min-norm point), exposing any
+        centering scheme that treats the two means independently.
+        """
+        rng = np.random.default_rng(seed=0)
+        n_teams = 10
+        alpha = rng.normal(0.0, 0.25, n_teams)
+        alpha -= alpha.mean()
+        beta = rng.normal(0.0, 0.25, n_teams)
+        beta -= beta.mean()
+        # Asymmetric shift: the two means diverge, which forces the
+        # min-norm MLE to produce unequal raw means and catches
+        # gauge-fixing bugs that rely on equal means.
+        alpha += 2.0
+        beta -= 1.0
+        rmse = self._recovery_rmse(alpha=alpha, beta=beta, gamma=0.3, rng=rng)
+        assert rmse < 0.03, (
+            f"asymmetric-shift recovery RMSE = {rmse:.4f}; a "
+            f"gauge-fixing bug (independent centres for alpha and "
+            f"beta) would show up here"
+        )
 
 
 # ---------- L2 regularisation ---------------------------------------------

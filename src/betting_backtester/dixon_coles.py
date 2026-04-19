@@ -35,13 +35,20 @@ Scope and deviations from full Dixon-Coles
 Parameter identifiability
 -------------------------
 
-``lambda_home = exp(alpha_h - beta_a + gamma)`` only depends on
-``alpha_h - beta_a``; adding any constant ``c`` to every ``alpha`` or
-every ``beta`` leaves the likelihood unchanged. To pin the gauge, after
-L-BFGS-B returns we subtract the mean of the attack ratings and the
-mean of the defence ratings separately from each. L2 already pulls
-each mean toward zero so the correction is tiny; doing it explicitly
-makes the fitted parameters directly comparable across fits.
+``lambda_home = exp(alpha_h - beta_a + gamma)`` depends on
+``alpha_h - beta_a``. The only shift that preserves every lambda is
+adding the same constant to all attack AND all defence ratings
+simultaneously: ``alpha_i += c`` and ``beta_i += c`` leaves every
+``alpha_i - beta_j`` unchanged. The gauge is therefore one-dimensional,
+not two.
+
+To pin the gauge we apply one shared shift after L-BFGS-B returns,
+choosing the convention ``mean(alpha) == 0``: compute
+``shared_shift = mean(alpha_raw)``, subtract it from every alpha and
+every beta. Lambdas are preserved exactly; alpha now sums to zero. L2
+already pulls the common mean toward zero so the correction is tiny,
+but doing it explicitly makes fitted alpha values directly comparable
+across fits.
 
 Convexity
 ---------
@@ -317,8 +324,13 @@ class DixonColesModel:
         x_hat: npt.NDArray[np.float64] = np.asarray(result.x, dtype=np.float64)
         alpha_raw = x_hat[:n_teams]
         beta_raw = x_hat[n_teams : 2 * n_teams]
-        alpha_hat = alpha_raw - float(np.mean(alpha_raw))
-        beta_hat = beta_raw - float(np.mean(beta_raw))
+        # Only a shared shift applied to both alpha and beta preserves
+        # the fitted log-rate differences alpha[home] - beta[away]. Use
+        # the convention mean(alpha_hat) == 0 without altering the
+        # model.
+        shared_shift = float(np.mean(alpha_raw))
+        alpha_hat = alpha_raw - shared_shift
+        beta_hat = beta_raw - shared_shift
         gamma_hat = float(x_hat[2 * n_teams])
 
         self._team_index = team_index
