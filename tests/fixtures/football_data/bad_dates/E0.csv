@@ -1,0 +1,5 @@
+Div,Date,Time,HomeTeam,AwayTeam,FTHG,FTAG,FTR,PSH,PSD,PSA
+E0,15/10/99,15:00,Alpha,Beta,2,1,H,2.00,3.50,3.80
+E0,16/10/99,15:00,Gamma,Delta,1,0,H,1.50,4.50,6.50
+E0,20/10/1999,15:00,Epsilon,Zeta,0,1,A,3.00,3.20,2.30
+E0,garbage,15:00,Eta,Theta,1,1,D,2.50,3.00,2.90
