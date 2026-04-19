@@ -59,16 +59,18 @@ from __future__ import annotations
 import csv
 import logging
 import re
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from datetime import date, datetime, time, timedelta, timezone
 from enum import Enum
 from pathlib import Path
+from types import MappingProxyType
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from betting_backtester._event_ordering import stream_sort_key
 from betting_backtester.models import (
     Event,
+    Match,
     MatchResult,
     MatchSettled,
     OddsAvailable,
@@ -213,6 +215,7 @@ class FootballDataLoader:
                 )
 
         all_events: list[Event] = []
+        all_matches: dict[str, Match] = {}
         seen_match_ids: set[str] = set()
         counts: dict[str, int] = {
             "rows_seen": 0,
@@ -224,10 +227,15 @@ class FootballDataLoader:
         }
 
         for path in paths:
-            _parse_file(path, all_events, seen_match_ids, counts)
+            _parse_file(path, all_events, all_matches, seen_match_ids, counts)
 
         all_events.sort(key=stream_sort_key)
         self._events: tuple[Event, ...] = tuple(all_events)
+        # MappingProxyType wraps a fresh dict so the loader's fixture
+        # directory is genuinely read-only (``loader.matches["x"] = ...``
+        # raises ``TypeError``) without aliasing a mutable dict the
+        # parser still holds a reference to.
+        self._matches: Mapping[str, Match] = MappingProxyType(dict(all_matches))
         self._summary: FootballDataLoadSummary = FootballDataLoadSummary(
             files_processed=len(paths),
             **counts,
@@ -237,6 +245,19 @@ class FootballDataLoader:
     def load_summary(self) -> FootballDataLoadSummary:
         """Parse-outcome counts, frozen at construction."""
         return self._summary
+
+    @property
+    def matches(self) -> Mapping[str, Match]:
+        """Read-only ``match_id -> Match`` directory for every loaded fixture.
+
+        Exposed so strategies that need fixture identity -- e.g. the
+        Dixon-Coles rating model, which keys on team names -- can
+        inject the directory at construction time. The event stream
+        itself deliberately carries only ``match_id`` for time-order
+        and settlement; team names belong to auxiliary data loaded
+        alongside.
+        """
+        return self._matches
 
     def events(self) -> Iterator[Event]:
         """Return a fresh iterator over the canonical event stream.
@@ -250,10 +271,17 @@ class FootballDataLoader:
 def _parse_file(
     path: Path,
     all_events: list[Event],
+    all_matches: dict[str, Match],
     seen_match_ids: set[str],
     counts: dict[str, int],
 ) -> None:
-    """Parse one CSV, appending events to ``all_events`` and mutating counts."""
+    """Parse one CSV, appending events to ``all_events`` and mutating counts.
+
+    Also populates ``all_matches`` with one :class:`Match` per accepted
+    row, keyed by ``match_id``. Events and matches are produced in
+    lockstep inside :func:`_parse_row`; a row that yields two events
+    also yields exactly one match entry.
+    """
     league_code = path.stem
 
     with path.open(newline="", encoding="utf-8-sig") as f:
@@ -273,6 +301,7 @@ def _parse_file(
             )
 
         file_events: list[Event] = []
+        file_matches: dict[str, Match] = {}
         file_seasons: set[str] = set()
 
         for row_index, raw_row in enumerate(reader):
@@ -286,6 +315,7 @@ def _parse_file(
                 row_index=row_index,
                 row=row,
                 file_events=file_events,
+                file_matches=file_matches,
                 file_seasons=file_seasons,
                 seen_match_ids=seen_match_ids,
                 counts=counts,
@@ -298,6 +328,7 @@ def _parse_file(
         )
 
     all_events.extend(file_events)
+    all_matches.update(file_matches)
 
 
 def _parse_row(
@@ -307,11 +338,12 @@ def _parse_row(
     row_index: int,
     row: dict[str, str],
     file_events: list[Event],
+    file_matches: dict[str, Match],
     file_seasons: set[str],
     seen_match_ids: set[str],
     counts: dict[str, int],
 ) -> None:
-    """Parse one data row, emitting two events or bumping a skip counter."""
+    """Parse one data row, emitting two events and one match, or bumping a skip counter."""
     parsed_date = _parse_date(row.get("Date", ""))
     if parsed_date is None:
         counts["skipped_missing_date"] += 1
@@ -324,7 +356,8 @@ def _parse_row(
     # rows that end up loaded. Otherwise a file spanning two seasons where
     # every row in one of them is skipped (missing odds, missing result,
     # etc.) would silently bypass the multi-season guard.
-    file_seasons.add(_derive_season_for_date(parsed_date))
+    season = _derive_season_for_date(parsed_date)
+    file_seasons.add(season)
 
     home_goals_raw = row.get("FTHG", "").strip()
     away_goals_raw = row.get("FTAG", "").strip()
@@ -409,10 +442,23 @@ def _parse_row(
         home_goals=home_goals,
         away_goals=away_goals,
     )
+    # Fixture identity record. Uses the normalised team names that the
+    # match_id already carries, so every team has one stable string
+    # identifier across the loader -- the directory and the event stream
+    # never disagree on who "Nott'm Forest" is.
+    match = Match(
+        match_id=match_id,
+        kickoff=kickoff,
+        league=league_code,
+        season=season,
+        home=home_norm,
+        away=away_norm,
+    )
 
     seen_match_ids.add(match_id)
     file_events.append(OddsAvailable(snapshot=snapshot))
     file_events.append(MatchSettled(result=result))
+    file_matches[match_id] = match
     counts["matches_loaded"] += 1
 
 
